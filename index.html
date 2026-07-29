@@ -452,7 +452,7 @@
         const clientKey = urlParams.get('key');
 
         if (!clientKey) {
-            showBlocked("⛔ Access Denied!", "Valid License Key Required in URL");
+            showBlocked("⛔ Access Denied!", "Valid License Key Required in URL (e.g. ?key=qs_001)");
             return;
         }
 
