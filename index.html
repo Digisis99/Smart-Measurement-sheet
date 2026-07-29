@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Master QS Site Measurement System - Structured Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.95);
+            --card-border: rgba(255, 255, 255, 0.12);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --info: #38bdf8;
+        }
+
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding: 0; }
+        
+        body { 
+            background: #0b1120; 
+            color: var(--text-main); 
+            padding: 10px; 
+            min-height: 100vh;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        
+        @media(min-width: 768px) { body { padding: 20px; } }
+
+        .container { max-width: 1250px; margin: 0 auto; display: none; width: 100%; }
+
+        /* AUTHENTICATION LOCK SCREEN */
+        #authOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, #1e1b4b, #030712);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            padding: 2rem;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-card i.lock-icon {
+            font-size: 2.5rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        .auth-card h2 { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.5rem; }
+        .auth-card p { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.5rem; }
+
+        .pin-input {
+            letter-spacing: 8px;
+            font-size: 1.5rem !important;
+            text-align: center;
+            font-weight: 800;
+        }
+
+        /* HEADER */
+        header {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            padding: 1.2rem;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 1.2rem;
+        }
+
+        @media(min-width: 768px) {
+            header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1.2rem 1.8rem;
+            }
+        }
+
+        header h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-btns { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; }
+        @media(min-width: 768px) { .header-btns { width: auto; } }
+
+        .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 14px; margin-bottom: 15px; }
+        .card-title { font-size: 12px; font-weight: 800; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; }
+
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+        .form-group label { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+        input, select { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; padding: 7px 9px; color: #fff; font-size: 11px; outline: none; width: 100%; }
+        input:focus, select:focus { border-color: var(--accent); }
+
+        /* MULTI-BOX PROJECT DETAILS GRID */
+        .project-boxes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .info-card-box {
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-left: 3px solid var(--info);
+            border-radius: 8px;
+            padding: 10px 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease;
+        }
+
+        .info-card-box:hover {
+            transform: translateY(-2px);
+            border-left-color: var(--accent);
+        }
+
+        .info-card-box label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 800;
+            display: block;
+            margin-bottom: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .info-card-box span {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        /* TABLE MOBILE RESPONSIVE WRAPPER */
+        .table-wrapper { 
+            overflow-x: auto; 
+            margin-bottom: 15px; 
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            -webkit-overflow-scrolling: touch; 
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; min-width: 600px; }
+        th { background: #0f172a; color: var(--accent); padding: 8px; border: 1px solid var(--card-border); text-align: center; font-size: 10px; }
+        td { padding: 5px 8px; border: 1px solid var(--card-border); text-align: center; }
+
+        .input-inline { background: #0f172a; border: 1px solid var(--card-border); color: #fff; font-weight: 700; text-align: center; padding: 4px; border-radius: 4px; }
+        
+        .btn { background: var(--accent); color: #000; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+        .btn-add-item { background: var(--info); color: #000; }
+        .btn-del { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); padding: 2px 6px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-print { background: var(--success); color: #fff; }
+        .btn-sec { background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid var(--card-border); }
+        .btn-danger-sec { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+
+        .item-summary-row { background: rgba(15, 23, 42, 0.95); font-weight: 800; font-size: 12px; color: var(--accent); }
+
+        .signature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 25px; text-align: center; }
+        .sig-box { border-top: 1px dashed var(--text-muted); padding-top: 8px; }
+        .sig-box h4 { font-size: 11px; color: var(--text-main); font-weight: 800; }
+        .sig-box p { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+
+        /* PRINT / PDF SPECIFIC STYLES */
+        @media print {
+            .btn, form, select, .no-print, #authOverlay { display: none !important; }
+            body { background: white !important; color: black !important; padding: 0; }
+            .container { display: block !important; }
+            .card { border: 1px solid #000 !important; background: white !important; color: black !important; box-shadow: none; padding: 8px; }
+            th { background: #f1f5f9 !important; color: black !important; border: 1px solid #000 !important; }
+            td { border: 1px solid #000 !important; color: black !important; }
+            input { border: none !important; background: transparent !important; color: black !important; text-align: center; }
+            .input-inline { border: none !important; background: transparent !important; color: black !important; }
+            
+            /* PRINT BOXES FORMAT */
+            .project-boxes-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+            .info-card-box { background: #ffffff !important; border: 1px solid #000000 !important; color: #000000 !important; border-left: 4px solid #000000 !important; }
+            .info-card-box label { color: #555555 !important; }
+            .info-card-box span { color: #000000 !important; font-weight: bold !important; }
+
+            /* Total Quantity PDF / Print Visibility Fix */
+            .item-summary-row { background: #f8fafc !important; color: #000000 !important; font-weight: bold !important; }
+            .item-summary-row td { color: #000000 !important; font-weight: 900 !important; border-top: 2px solid #000 !important; }
+            
+            .sig-box { border-top: 1px solid #000 !important; color: black !important; }
+            .sig-box h4 { color: black !important; }
+        }
+    </style>
+</head>
+<body>
+
+  <!-- AUTHENTICATION LOCK SCREEN -->
+  <div id="authOverlay">
+    <div class="auth-card">
+      <i class="fa-solid fa-shield-halved lock-icon"></i>
+      <h2>Access Protected</h2>
+      <p>Enter Master PIN to unlock QS System</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <input type="password" id="inputPin" class="pin-input" maxlength="6" placeholder="••••" required autofocus>
+        </div>
+        <button type="submit" class="btn" style="width:100%; margin-top:10px;">Unlock System</button>
+      </form>
+      <p style="margin-top: 15px; font-size: 0.75rem; color: var(--text-muted);">Default PIN: 1234</p>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div class="container" id="mainSystem">
+    
+    <header class="no-print">
+      <h1><i class="fa-solid fa-calculator"></i> MEASUREMENT TAKEOFF SYSTEM</h1>
+      <div class="header-btns">
+        <button class="btn btn-sec btn-sm" onclick="changePinModal()"><i class="fa-solid fa-key"></i> PIN</button>
+        <button class="btn btn-danger-sec btn-sm" onclick="resetAllData()"><i class="fa-solid fa-trash"></i> Reset Data</button>
+        <button class="btn btn-sec btn-sm" onclick="lockSystem()"><i class="fa-solid fa-lock"></i> Lock</button>
+      </div>
+    </header>
+
+    <!-- 1. PROJECT HEADER DETAILS FORM -->
+    <div class="card no-print">
+        <div class="card-title">Project & Header Information</div>
+        <div class="grid-4">
+            <div class="form-group">
+                <label>Project Name</label>
+                <input type="text" id="pName" value="Proposed Commercial Building Construction" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Client / Employer</label>
+                <input type="text" id="pClient" value="ASE Design & Development Ltd" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Main Contractor</label>
+                <input type="text" id="pContractor" value="Prime Builders Sri Lanka" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Sub-Contractor / Trade</label>
+                <input type="text" id="pSubContractor" value="Masonry & Concrete Works Team A" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Location / Block / Floor</label>
+                <input type="text" id="pLoc" value="Ground Floor & Foundation" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Measurement Date</label>
+                <input type="date" id="pDate" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Valuation / Sheet Ref No</label>
+                <input type="text" id="pRef" value="VAL-2026-001 / Sheet 01" onchange="updateProjectMeta()">
+            </div>
+            <div class="form-group">
+                <label>Measured By (Name/Title)</label>
+                <input type="text" id="pMeasBy" value="Sunimal Perera (Site QS)" onchange="updateProjectMeta()">
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. CREATE NEW BOQ ITEM -->
+    <div class="card no-print">
+        <div class="card-title">Add New B.O.Q Item</div>
+        <form id="newBoqForm">
+            <div class="grid-4">
+                <div class="form-group">
+                    <label>B.O.Q No.</label>
+                    <input type="text" id="newBoqNo" placeholder="e.g. B.1" required>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Description</label>
+                    <input type="text" id="newBoqDesc" placeholder="e.g. Excavation for column foundation" required>
+                </div>
+                <div class="form-group">
+                    <label>Unit</label>
+                    <select id="newBoqUnit">
+                        <option value="m3">m3 (Cubicity)</option>
+                        <option value="m2">m2 (Square Area)</option>
+                        <option value="m">m (Linear)</option>
+                        <option value="Nos">Nos (Count)</option>
+                        <option value="ft3">ft3</option>
+                        <option value="ft2">ft2</option>
+                        <option value="ft">ft</option>
+                    </select>
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 5px;">
+                <button type="submit" class="btn btn-add-item">+ Create BOQ Section</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 3. ADD MEASUREMENT ROW -->
+    <div class="card no-print">
+        <div class="card-title">Add Measurement Row</div>
+        <form id="rowForm">
+            <div class="grid-3" style="margin-bottom: 10px;">
+                <div class="form-group">
+                    <label>Select Target BOQ Item</label>
+                    <select id="targetBoqSelect"></select>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Row Sub-Description / Location (Optional)</label>
+                    <input type="text" id="rSubDesc" placeholder="e.g. Footing F1 / Grid Line A-B">
+                </div>
+            </div>
+
+            <div class="grid-4">
+                <div class="form-group">
+                    <label>Times / No (Deduction නම් -1 යොදන්න)</label>
+                    <input type="number" id="rTimes" value="1" step="any" required>
+                </div>
+                <div class="form-group">
+                    <label>Length</label>
+                    <input type="number" id="rL" value="0" step="any" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Width</label>
+                    <input type="number" id="rW" value="0" step="any" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Depth / Height</label>
+                    <input type="number" id="rD" value="0" step="any" placeholder="0.00">
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 8px;">
+                <button type="submit" class="btn">+ Add Measurement Row</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 4. MASTER REPORT SHEET CONTAINER -->
+    <div class="card">
+        
+        <!-- INDIVIDUAL CARDS / BOXES FOR PROJECT DETAILS -->
+        <div class="card-title">Project Reference Overview</div>
+        <div class="project-boxes-grid">
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-building"></i> Project Name</label>
+                <span id="dispPName">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-user-tie"></i> Client / Employer</label>
+                <span id="dispPClient">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-helmet-safety"></i> Main Contractor</label>
+                <span id="dispPContractor">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-people-group"></i> Sub-Contractor</label>
+                <span id="dispPSubContractor">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-location-dot"></i> Site Location</label>
+                <span id="dispPLoc">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-calendar-days"></i> Measurement Date</label>
+                <span id="dispPDate">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-file-invoice"></i> Valuation Ref No.</label>
+                <span id="dispPRef">-</span>
+            </div>
+            <div class="info-card-box">
+                <label><i class="fa-solid fa-user-check"></i> Measured By</label>
+                <span id="dispPMeasBy">-</span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 15px;">
+            <div class="card-title" style="margin: 0;">DETAILED MEASUREMENT SHEET</div>
+            <div class="no-print">
+                <button class="btn btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Sheet / Save PDF</button>
+            </div>
+        </div>
+
+        <div id="boqItemsContainer"></div>
+
+        <!-- 5. SIGNATURES & APPROVAL SECTION -->
+        <div class="signature-grid">
+            <div class="sig-box">
+                <h4 id="sigMeasuredName">Sunimal Perera</h4>
+                <p>MEASURED BY (SITE QS)</p>
+                <p style="font-size: 8px; color: #94a3b8; margin-top: 15px;">Date: ____ / ____ / ________</p>
+            </div>
+            <div class="sig-box">
+                <h4>______________________</h4>
+                <p>CHECKED BY (SENIOR QS / ENGINEER)</p>
+                <p style="font-size: 8px; color: #94a3b8; margin-top: 15px;">Date: ____ / ____ / ________</p>
+            </div>
+            <div class="sig-box">
+                <h4>______________________</h4>
+                <p>APPROVED BY (PROJECT MANAGER / CONSULTANT)</p>
+                <p style="font-size: 8px; color: #94a3b8; margin-top: 15px;">Date: ____ / ____ / ________</p>
+            </div>
+        </div>
+    </div>
+
+  </div>
+
+<!-- 1. ANTI-COPY & ANTI-INSPECT PROTECTION SCRIPT -->
+<script>
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.onkeydown = function(e) {
+        if (e.keyCode === 123) return false;
+        if (e.ctrlKey && e.keyCode === 'U'.charCodeAt(0)) return false;
+        if (e.ctrlKey && e.shiftKey && e.keyCode === 'I'.charCodeAt(0)) return false;
+        if (e.ctrlKey && e.shiftKey && e.keyCode === 'C'.charCodeAt(0)) return false;
+        if (e.ctrlKey && e.shiftKey && e.keyCode === 'J'.charCodeAt(0)) return false;
+        if (e.ctrlKey && e.keyCode === 'S'.charCodeAt(0)) return false;
+    };
+</script>
+
+<!-- 2. LIVE GOOGLE DRIVE DATABASE DEVICE-LOCK SCRIPT -->
+<script>
+    (function() {
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvEOijNAgkKmucXoNPWT6D0uESaVGl1zM70Wm03ql_ySepn1s9jwoud3_Go77HBQCW/exec";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientKey = urlParams.get('key');
+
+        if (!clientKey) {
+            showBlocked("⛔ Access Denied!", "Valid License Key Required in URL (e.g. ?key=qs_001)");
+            return;
+        }
+
+        const deviceFP = window.btoa(navigator.userAgent + screen.width + "x" + screen.height);
+
+        fetch(`${GOOGLE_SCRIPT_URL}?key=${encodeURIComponent(clientKey)}&device=${encodeURIComponent(deviceFP)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "SUCCESS") {
+                    console.log("QS Takeoff System License Verified!");
+                } else {
+                    showBlocked("⛔ Access Denied!", data.message);
+                }
+            })
+            .catch(err => {
+                showBlocked("⛔ Verification Error", "Unable to connect to Google Drive verification server.");
+            });
+
+        function showBlocked(title, msg) {
+            document.body.innerHTML = `
+                <div style="display:flex; justify-content:center; align-items:center; height:100vh; background:#0b1120; color:#ef4444; font-family:sans-serif; text-align:center; padding:20px;">
+                    <div style="background:#1e293b; padding:30px; border-radius:16px; border:1px solid #ef4444; max-width:420px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+                        <h1 style="font-size:1.5rem; margin-bottom:12px; color:#ef4444;">${title}</h1>
+                        <p style="color:#94a3b8; font-size:0.9rem; line-height:1.5;">${msg}</p>
+                    </div>
+                </div>`;
+        }
+    })();
+</script>
+
+<!-- 3. MAIN SYSTEM LOGIC SCRIPT -->
+<script>
+    let savedPin = localStorage.getItem('qs_sys_pin') || '1234';
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const enteredPin = document.getElementById('inputPin').value;
+      if(enteredPin === savedPin) {
+        document.getElementById('authOverlay').style.display = 'none';
+        document.getElementById('mainSystem').style.display = 'block';
+        document.getElementById('inputPin').value = '';
+      } else {
+        alert('වැරදි Passcode එකකි! (Incorrect Passcode)');
+        document.getElementById('inputPin').value = '';
+      }
+    });
+
+    function lockSystem() {
+      document.getElementById('mainSystem').style.display = 'none';
+      document.getElementById('authOverlay').style.display = 'flex';
+    }
+
+    function changePinModal() {
+      const current = prompt('Enter Current Passcode:');
+      if(current === savedPin) {
+        const newPin = prompt('Enter NEW Passcode (4 to 6 Digits):');
+        if(newPin && newPin.length >= 4) {
+          savedPin = newPin;
+          localStorage.setItem('qs_sys_pin', savedPin);
+          alert('Passcode එක සාර්ථකව වෙනස් කරන ලදී! (PIN Changed Successfully)');
+        } else {
+          alert('Passcode එක අවම වශයෙන් ඉලක්කම් 4ක් විය යුතුය.');
+        }
+      } else if(current !== null) {
+        alert('පැරණි Passcode එක වැරදියි!');
+      }
+    }
+
+    // INITIAL SAMPLE DATA
+    const defaultData = [
+        {
+            id: 1,
+            boqNo: "B.1",
+            desc: "Excavation for column foundation",
+            unit: "m3",
+            rows: [
+                { id: 101, subDesc: "Column Footing Type 1", times: 1, l: 1.8, w: 1.8, d: 1.5 },
+                { id: 102, subDesc: "Column Footing Type 2", times: 1, l: 1.8, w: 1.8, d: 1.5 },
+                { id: 103, subDesc: "Column Footing Type 3", times: 1, l: 1.8, w: 1.8, d: 1.5 },
+                { id: 104, subDesc: "Column Footing Type 4", times: 1, l: 1.8, w: 1.8, d: 1.5 },
+                { id: 105, subDesc: "Column Footing Type 5", times: 1, l: 1.8, w: 1.8, d: 1.5 },
+                { id: 106, subDesc: "Column Footing Type 6", times: 1, l: 1.8, w: 1.8, d: 1.5 }
+            ]
+        },
+        {
+            id: 2,
+            boqNo: "B.2",
+            desc: "Excavation for random rubble retaining wall for both sides and front",
+            unit: "m3",
+            rows: [
+                { id: 201, subDesc: "Side Wall A", times: 1, l: 13.6, w: 0.6, d: 1.5 },
+                { id: 202, subDesc: "Side Wall B", times: 1, l: 5.3, w: 0.6, d: 1.5 },
+                { id: 203, subDesc: "Front Sloped Wall 1", times: 0.5, l: 9.3, w: 0.6, d: 1.95 },
+                { id: 204, subDesc: "Front Sloped Wall 2", times: 0.5, l: 11.8, w: 0.6, d: 2.4 },
+                { id: 205, subDesc: "Front Sloped Wall 3", times: 0.5, l: 6.0, w: 0.6, d: 2.4 }
+            ]
+        }
+    ];
+
+    let boqItems = JSON.parse(localStorage.getItem('qs_master_data')) || defaultData;
+
+    document.getElementById('pDate').valueAsDate = new Date();
+
+    function updateProjectMeta() {
+        document.getElementById('dispPName').innerText = document.getElementById('pName').value;
+        document.getElementById('dispPClient').innerText = document.getElementById('pClient').value;
+        document.getElementById('dispPContractor').innerText = document.getElementById('pContractor').value;
+        document.getElementById('dispPSubContractor').innerText = document.getElementById('pSubContractor').value;
+        document.getElementById('dispPLoc').innerText = document.getElementById('pLoc').value;
+        document.getElementById('dispPDate').innerText = document.getElementById('pDate').value;
+        document.getElementById('dispPRef').innerText = document.getElementById('pRef').value;
+        document.getElementById('dispPMeasBy').innerText = document.getElementById('pMeasBy').value;
+        document.getElementById('sigMeasuredName').innerText = document.getElementById('pMeasBy').value;
+    }
+
+    function saveData() {
+        localStorage.setItem('qs_master_data', JSON.stringify(boqItems));
+        renderMasterSheet();
+    }
+
+    function resetAllData() {
+        if(confirm("ඔබට පද්ධතියේ ඇති සියලුම දත්ත මුල සිට Reset කිරීමට අවශ්‍යද?")) {
+            boqItems = [];
+            saveData();
+            updateTargetSelect();
+        }
+    }
+
+    // 1. Add BOQ Item
+    document.getElementById('newBoqForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let boqNo = document.getElementById('newBoqNo').value;
+        let desc = document.getElementById('newBoqDesc').value;
+        let unit = document.getElementById('newBoqUnit').value;
+
+        boqItems.push({
+            id: Date.now(),
+            boqNo, desc, unit,
+            rows: []
+        });
+
+        document.getElementById('newBoqForm').reset();
+        updateTargetSelect();
+        saveData();
+    });
+
+    // 2. Add Row Entry
+    document.getElementById('rowForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let targetId = parseInt(document.getElementById('targetBoqSelect').value);
+        let subDesc = document.getElementById('rSubDesc').value;
+        let times = parseFloat(document.getElementById('rTimes').value) || 1;
+        let l = parseFloat(document.getElementById('rL').value) || 0;
+        let w = parseFloat(document.getElementById('rW').value) || 0;
+        let d = parseFloat(document.getElementById('rD').value) || 0;
+
+        let item = boqItems.find(b => b.id === targetId);
+        if(item) {
+            item.rows.push({ id: Date.now(), subDesc, times, l, w, d });
+        }
+
+        document.getElementById('rSubDesc').value = '';
+        document.getElementById('rTimes').value = '1';
+        document.getElementById('rL').value = '';
+        document.getElementById('rW').value = '';
+        document.getElementById('rD').value = '';
+        saveData();
+    });
+
+    function updateTargetSelect() {
+        let select = document.getElementById('targetBoqSelect');
+        select.innerHTML = '';
+        boqItems.forEach(b => {
+            let opt = document.createElement('option');
+            opt.value = b.id;
+            opt.innerText = `${b.boqNo} - ${b.desc} (${b.unit})`;
+            select.appendChild(opt);
+        });
+    }
+
+    function updateRowVal(itemId, rowId, field, val) {
+        let boq = boqItems.find(b => b.id === itemId);
+        if(boq) {
+            let r = boq.rows.find(row => row.id === rowId);
+            if(r) {
+                if(field === 'subDesc') r.subDesc = val;
+                else r[field] = parseFloat(val) || 0;
+                saveData();
+            }
+        }
+    }
+
+    function deleteRow(itemId, rowId) {
+        let boq = boqItems.find(b => b.id === itemId);
+        if(boq) {
+            boq.rows = boq.rows.filter(r => r.id !== rowId);
+            saveData();
+        }
+    }
+
+    function deleteBoqSection(itemId) {
+        if(confirm("මෙම B.O.Q Item එක සම්පූර්ණයෙන්ම ඉවත් කිරීමට අවශ්‍යද?")) {
+            boqItems = boqItems.filter(b => b.id !== itemId);
+            updateTargetSelect();
+            saveData();
+        }
+    }
+
+    function renderMasterSheet() {
+        let container = document.getElementById('boqItemsContainer');
+        container.innerHTML = '';
+
+        boqItems.forEach((boq) => {
+            let wrapper = document.createElement('div');
+            wrapper.className = 'table-wrapper';
+
+            let itemTotalQty = 0;
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th width="80px">B.O.Q No.</th>
+                            <th>Description</th>
+                            <th width="60px">Unit</th>
+                            <th width="60px">Times / No</th>
+                            <th width="80px">Length</th>
+                            <th width="80px">Width</th>
+                            <th width="80px">Depth</th>
+                            <th width="100px">Qty</th>
+                            <th width="120px">Total</th>
+                            <th width="40px" class="no-print">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="font-weight:bold;">${boq.boqNo}</td>
+                            <td style="text-align:left; font-weight:bold;">${boq.desc}</td>
+                            <td>${boq.unit}</td>
+                            <td></td><td></td><td></td><td></td><td></td><td></td>
+                            <td class="no-print"><button class="btn-del" onclick="deleteBoqSection(${boq.id})">×</button></td>
+                        </tr>
+            `;
+
+            boq.rows.forEach((r) => {
+                let qty = 0;
+                if(r.overrideQty !== undefined && r.overrideQty !== 0) {
+                    qty = r.overrideQty;
+                } else {
+                    let fL = r.l > 0 ? r.l : 1;
+                    let fW = r.w > 0 ? r.w : 1;
+                    let fD = r.d > 0 ? r.d : 1;
+                    qty = r.times * fL * fW * fD;
+                }
+
+                itemTotalQty += qty;
+
+                html += `
+                    <tr>
+                        <td></td>
+                        <td style="text-align:left; color:var(--text-muted); font-size:10px;">${r.subDesc || ''}</td>
+                        <td>${boq.unit}</td>
+                        <td><input type="number" class="input-inline" style="width:50px;" value="${r.times}" onchange="updateRowVal(${boq.id}, ${r.id}, 'times', this.value)"></td>
+                        <td><input type="number" class="input-inline" style="width:65px;" value="${r.l || ''}" placeholder="-" onchange="updateRowVal(${boq.id}, ${r.id}, 'l', this.value)"></td>
+                        <td><input type="number" class="input-inline" style="width:65px;" value="${r.w || ''}" placeholder="-" onchange="updateRowVal(${boq.id}, ${r.id}, 'w', this.value)"></td>
+                        <td><input type="number" class="input-inline" style="width:65px;" value="${r.d || ''}" placeholder="-" onchange="updateRowVal(${boq.id}, ${r.id}, 'd', this.value)"></td>
+                        <td style="font-weight:600; color:${qty < 0 ? 'var(--danger)' : 'var(--text-main)'};">${qty.toFixed(2)}</td>
+                        <td></td>
+                        <td class="no-print"><button class="btn-del" onclick="deleteRow(${boq.id}, ${r.id})">×</button></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="item-summary-row">
+                            <td colspan="8" style="text-align:right;">TOTAL QUANTITY FOR (${boq.boqNo}) :</td>
+                            <td style="font-size:12px; font-weight:900;">${itemTotalQty.toFixed(2)} ${boq.unit}</td>
+                            <td class="no-print"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+
+            wrapper.innerHTML = html;
+            container.appendChild(wrapper);
+        });
+    }
+
+    updateProjectMeta();
+    updateTargetSelect();
+    renderMasterSheet();
+</script>
+
+</body>
+</html>
