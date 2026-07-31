@@ -193,6 +193,10 @@
         .sig-box h4 { font-size: 11px; color: var(--text-main); font-weight: 800; }
         .sig-box p { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
 
+        #syncBadge { font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; }
+        .sync-success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .sync-loading { background: rgba(245, 158, 11, 0.2); color: var(--accent); }
+
         /* PRINT / PDF SPECIFIC STYLES */
         @media print {
             .btn, form, select, .no-print, #authOverlay { display: none !important; }
@@ -241,7 +245,10 @@
   <div class="container" id="mainSystem">
     
     <header class="no-print">
-      <h1><i class="fa-solid fa-calculator"></i> MEASUREMENT TAKEOFF SYSTEM</h1>
+      <h1>
+        <i class="fa-solid fa-calculator"></i> MEASUREMENT TAKEOFF SYSTEM
+        <span id="syncBadge" class="sync-success"><i class="fa-solid fa-cloud-check"></i> Cloud Synced</span>
+      </h1>
       <div class="header-btns">
         <button class="btn btn-sec btn-sm" onclick="changePinModal()"><i class="fa-solid fa-key"></i> PIN</button>
         <button class="btn btn-danger-sec btn-sm" onclick="resetAllData()"><i class="fa-solid fa-trash"></i> Reset Data</button>
@@ -337,7 +344,7 @@
 
             <div class="grid-4">
                 <div class="form-group">
-                    <label>Times / No (Deduction නම් -1 යොදන්න)</label>
+                    <label>Times / No (Deductions use -1)</label>
                     <input type="number" id="rTimes" value="1" step="any" required>
                 </div>
                 <div class="form-group">
@@ -443,26 +450,37 @@
     };
 </script>
 
-<!-- 2. LIVE GOOGLE DRIVE DATABASE DEVICE-LOCK SCRIPT -->
+<!-- 2. LIVE GOOGLE DRIVE DATABASE DEVICE-LOCK & AUTO-SYNC SCRIPT -->
 <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientKey = urlParams.get('key');
+    const customEndpoint = urlParams.get('endpoint');
+
+    // ඔබ ලබාගත් Google Web App URL එක මෙතැනට තබන්න:
+    const DEFAULT_ENDPOINT = "https://script.google.com/macros/s/AKfycbzvEOijNAgkKmucXoNPWT6D0uESaVGl1zM70Wm03ql_ySepn1s9jwoud3_Go77HBQCW/exec";
+    const GOOGLE_SCRIPT_URL = customEndpoint ? decodeURIComponent(customEndpoint) : DEFAULT_ENDPOINT;
+
+    let isLicenseVerified = false;
+
     (function() {
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvEOijNAgkKmucXoNPWT6D0uESaVGl1zM70Wm03ql_ySepn1s9jwoud3_Go77HBQCW/exec";
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientKey = urlParams.get('key');
-
         if (!clientKey) {
             showBlocked("⛔ Access Denied!", "Valid License Key Required in URL");
             return;
         }
 
-        const deviceFP = window.btoa(navigator.userAgent + screen.width + "x" + screen.height);
+        const deviceFP = window.btoa(navigator.userAgent.replace(/\s+/g, '') + screen.width + "x" + screen.height);
 
         fetch(`${GOOGLE_SCRIPT_URL}?key=${encodeURIComponent(clientKey)}&device=${encodeURIComponent(deviceFP)}`)
             .then(res => res.json())
             .then(data => {
                 if (data.status === "SUCCESS") {
-                    console.log("QS Takeoff System License Verified!");
+                    isLicenseVerified = true;
+                    if (data.cloudData && data.cloudData.trim().length > 0) {
+                        try {
+                            const parsedCloud = JSON.parse(data.cloudData);
+                            restoreQsStateFromCloud(parsedCloud);
+                        } catch(err) { console.error("Cloud Data Restore Error", err); }
+                    }
                 } else {
                     showBlocked("⛔ Access Denied!", data.message);
                 }
@@ -481,6 +499,31 @@
                 </div>`;
         }
     })();
+
+    function syncDataToCloud(statePayload) {
+        if (!clientKey || !isLicenseVerified) return;
+        const syncBadge = document.getElementById('syncBadge');
+        if (syncBadge) {
+            syncBadge.className = "sync-loading";
+            syncBadge.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Syncing...`;
+        }
+
+        const payload = encodeURIComponent(JSON.stringify(statePayload));
+        fetch(`${GOOGLE_SCRIPT_URL}?key=${encodeURIComponent(clientKey)}&action=save_data&payload=${payload}`)
+            .then(res => res.json())
+            .then(data => {
+                if (syncBadge) {
+                    syncBadge.className = "sync-success";
+                    syncBadge.innerHTML = `<i class="fa-solid fa-cloud-check"></i> Cloud Synced`;
+                }
+            })
+            .catch(err => {
+                if (syncBadge) {
+                    syncBadge.className = "sync-loading";
+                    syncBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Sync Failed`;
+                }
+            });
+    }
 </script>
 
 <!-- 3. MAIN SYSTEM LOGIC SCRIPT -->
@@ -517,7 +560,7 @@
           alert('Passcode එක අවම වශයෙන් ඉලක්කම් 4ක් විය යුතුය.');
         }
       } else if(current !== null) {
-        alert('පැරණි Passcode එක වැරදියි!');
+        alert('වර්තමාන Passcode එක වැරදියි!');
       }
     }
 
@@ -566,18 +609,66 @@
         document.getElementById('dispPRef').innerText = document.getElementById('pRef').value;
         document.getElementById('dispPMeasBy').innerText = document.getElementById('pMeasBy').value;
         document.getElementById('sigMeasuredName').innerText = document.getElementById('pMeasBy').value;
+
+        saveAndSyncQsState();
     }
 
-    function saveData() {
+    function saveAndSyncQsState() {
+        const statePayload = {
+            pName: document.getElementById('pName').value,
+            pClient: document.getElementById('pClient').value,
+            pContractor: document.getElementById('pContractor').value,
+            pSubContractor: document.getElementById('pSubContractor').value,
+            pLoc: document.getElementById('pLoc').value,
+            pDate: document.getElementById('pDate').value,
+            pRef: document.getElementById('pRef').value,
+            pMeasBy: document.getElementById('pMeasBy').value,
+            boqItems: boqItems
+        };
         localStorage.setItem('qs_master_data', JSON.stringify(boqItems));
+        localStorage.setItem('qs_meta_data', JSON.stringify(statePayload));
+        syncDataToCloud(statePayload);
+    }
+
+    function restoreQsStateFromCloud(state) {
+        if (!state) return;
+        if (state.pName) document.getElementById('pName').value = state.pName;
+        if (state.pClient) document.getElementById('pClient').value = state.pClient;
+        if (state.pContractor) document.getElementById('pContractor').value = state.pContractor;
+        if (state.pSubContractor) document.getElementById('pSubContractor').value = state.pSubContractor;
+        if (state.pLoc) document.getElementById('pLoc').value = state.pLoc;
+        if (state.pDate) document.getElementById('pDate').value = state.pDate;
+        if (state.pRef) document.getElementById('pRef').value = state.pRef;
+        if (state.pMeasBy) document.getElementById('pMeasBy').value = state.pMeasBy;
+
+        if (state.boqItems) {
+            boqItems = state.boqItems;
+            localStorage.setItem('qs_master_data', JSON.stringify(boqItems));
+        }
+
+        updateProjectMetaSilent();
+        updateTargetSelect();
         renderMasterSheet();
     }
 
+    function updateProjectMetaSilent() {
+        document.getElementById('dispPName').innerText = document.getElementById('pName').value;
+        document.getElementById('dispPClient').innerText = document.getElementById('pClient').value;
+        document.getElementById('dispPContractor').innerText = document.getElementById('pContractor').value;
+        document.getElementById('dispPSubContractor').innerText = document.getElementById('pSubContractor').value;
+        document.getElementById('dispPLoc').innerText = document.getElementById('pLoc').value;
+        document.getElementById('dispPDate').innerText = document.getElementById('pDate').value;
+        document.getElementById('dispPRef').innerText = document.getElementById('pRef').value;
+        document.getElementById('dispPMeasBy').innerText = document.getElementById('pMeasBy').value;
+        document.getElementById('sigMeasuredName').innerText = document.getElementById('pMeasBy').value;
+    }
+
     function resetAllData() {
-        if(confirm("ඔබට පද්ධතියේ ඇති සියලුම දත්ත මුල සිට Reset කිරීමට අවශ්‍යද?")) {
+        if(confirm("සියලුම දත්තයන් සහ මිනුම් ලේඛන ඉවත් කර Reset කිරීමට අවශ්‍යද?")) {
             boqItems = [];
-            saveData();
+            saveAndSyncQsState();
             updateTargetSelect();
+            renderMasterSheet();
         }
     }
 
@@ -596,7 +687,8 @@
 
         document.getElementById('newBoqForm').reset();
         updateTargetSelect();
-        saveData();
+        saveAndSyncQsState();
+        renderMasterSheet();
     });
 
     // 2. Add Row Entry
@@ -619,7 +711,8 @@
         document.getElementById('rL').value = '';
         document.getElementById('rW').value = '';
         document.getElementById('rD').value = '';
-        saveData();
+        saveAndSyncQsState();
+        renderMasterSheet();
     });
 
     function updateTargetSelect() {
@@ -640,7 +733,8 @@
             if(r) {
                 if(field === 'subDesc') r.subDesc = val;
                 else r[field] = parseFloat(val) || 0;
-                saveData();
+                saveAndSyncQsState();
+                renderMasterSheet();
             }
         }
     }
@@ -649,15 +743,17 @@
         let boq = boqItems.find(b => b.id === itemId);
         if(boq) {
             boq.rows = boq.rows.filter(r => r.id !== rowId);
-            saveData();
+            saveAndSyncQsState();
+            renderMasterSheet();
         }
     }
 
     function deleteBoqSection(itemId) {
-        if(confirm("මෙම B.O.Q Item එක සම්පූර්ණයෙන්ම ඉවත් කිරීමට අවශ්‍යද?")) {
+        if(confirm("මෙම B.O.Q Item එක සහ ඊට අදාළ සියලුම මිනුම් ඉවත් කිරීමට අවශ්‍යද?")) {
             boqItems = boqItems.filter(b => b.id !== itemId);
             updateTargetSelect();
-            saveData();
+            saveAndSyncQsState();
+            renderMasterSheet();
         }
     }
 
@@ -743,9 +839,14 @@
         });
     }
 
-    updateProjectMeta();
-    updateTargetSelect();
-    renderMasterSheet();
+    // Initial Startup
+    const cachedMeta = JSON.parse(localStorage.getItem('qs_meta_data'));
+    if (cachedMeta) restoreQsStateFromCloud(cachedMeta);
+    else {
+        updateProjectMetaSilent();
+        updateTargetSelect();
+        renderMasterSheet();
+    }
 </script>
 
 </body>
