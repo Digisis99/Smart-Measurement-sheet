@@ -7,6 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Google Identity Services (GIS) API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
     <style>
         :root {
             --bg-dark: #0f172a;
@@ -32,6 +35,9 @@
             -ms-user-select: none;
             user-select: none;
             overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         
         @media(min-width: 768px) { body { padding: 20px; } }
@@ -185,6 +191,7 @@
         .btn-print { background: var(--success); color: #fff; }
         .btn-sec { background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid var(--card-border); }
         .btn-danger-sec { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-drive { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
 
         .item-summary-row { background: rgba(15, 23, 42, 0.95); font-weight: 800; font-size: 12px; color: var(--accent); }
 
@@ -199,7 +206,7 @@
 
         /* PRINT / PDF SPECIFIC STYLES */
         @media print {
-            .btn, form, select, .no-print, #authOverlay { display: none !important; }
+            .btn, form, select, .no-print, #authOverlay, footer { display: none !important; }
             body { background: white !important; color: black !important; padding: 0; }
             .container { display: block !important; }
             .card { border: 1px solid #000 !important; background: white !important; color: black !important; box-shadow: none; padding: 8px; }
@@ -237,7 +244,13 @@
         </div>
         <button type="submit" class="btn" style="width:100%; margin-top:10px;">Unlock System</button>
       </form>
-      <p style="margin-top: 15px; font-size: 0.75rem; color: var(--text-muted);">Default PIN: 1234</p>
+      <p style="margin-top: 12px; font-size: 0.75rem; color: var(--text-muted);">Default PIN: 1234</p>
+      
+      <!-- LOCK SCREEN COPYRIGHT NOTICE -->
+      <div style="margin-top: 20px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: var(--text-muted);">
+        <p><i class="fa-solid fa-lock text-amber-400"></i> Encrypted Site QS Engine</p>
+        <p style="margin-top: 3px;">© 2026 <strong>Master QS System Pro</strong>. All Rights Reserved.</p>
+      </div>
     </div>
   </div>
 
@@ -250,6 +263,7 @@
         <span id="syncBadge" class="sync-success"><i class="fa-solid fa-cloud-check"></i> Cloud Synced</span>
       </h1>
       <div class="header-btns">
+        <button class="btn btn-drive btn-sm" onclick="requestGoogleDriveAccess()"><i class="fab fa-google-drive"></i> Sync Drive</button>
         <button class="btn btn-sec btn-sm" onclick="changePinModal()"><i class="fa-solid fa-key"></i> PIN</button>
         <button class="btn btn-danger-sec btn-sm" onclick="resetAllData()"><i class="fa-solid fa-trash"></i> Reset Data</button>
         <button class="btn btn-sec btn-sm" onclick="lockSystem()"><i class="fa-solid fa-lock"></i> Lock</button>
@@ -435,6 +449,16 @@
         </div>
     </div>
 
+    <!-- MAIN SYSTEM FOOTER COPYRIGHT NOTICE -->
+    <footer class="no-print" style="width:100%; text-align:center; padding: 20px 0 10px; border-top: 1px solid var(--card-border); margin-top:20px; font-size:11px; color:var(--text-muted);">
+        <div style="display:flex; justify-content:center; gap:12px; font-weight:600; margin-bottom:4px;">
+            <span><i class="fa-solid fa-shield-halved text-amber-400"></i> Proprietary Security System</span>
+            <span>•</span>
+            <span><i class="fab fa-google-drive text-emerald-400"></i> Client AppData Drive Backup</span>
+        </div>
+        <p>© 2026 <strong>Master QS Site Measurement System Pro</strong>. All Rights Reserved.</p>
+    </footer>
+
   </div>
 
 <!-- 1. ANTI-COPY & ANTI-INSPECT PROTECTION SCRIPT -->
@@ -456,9 +480,40 @@
     const clientKey = urlParams.get('key');
     const customEndpoint = urlParams.get('endpoint');
 
-    // ඔබ ලබාගත් Google Web App URL එක මෙතැනට තබන්න:
     const DEFAULT_ENDPOINT = "https://script.google.com/macros/s/AKfycbzvEOijNAgkKmucXoNPWT6D0uESaVGl1zM70Wm03ql_ySepn1s9jwoud3_Go77HBQCW/exec";
     const GOOGLE_SCRIPT_URL = customEndpoint ? decodeURIComponent(customEndpoint) : DEFAULT_ENDPOINT;
+
+    // =========================================================================
+    // ⚠️ GOOGLE OAUTH CLIENT ID එක පහත සඳහන් ස්ථානයට PASTE කරන්න:
+    // =========================================================================
+    const GOOGLE_CLIENT_ID = "121225169916-0ep54f7ls5ht5u972p7b2qdfttjug54r.apps.googleusercontent.com";
+    // =========================================================================
+
+    let tokenClient;
+    let gAccessToken = localStorage.getItem('g_drive_token_qs') || null;
+
+    function initGoogleDriveAuth() {
+        if (typeof google === 'undefined' || !google.accounts) return;
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: "https://www.googleapis.com/auth/drive.appdata",
+            callback: async (response) => {
+                if (response.access_token) {
+                    gAccessToken = response.access_token;
+                    localStorage.setItem('g_drive_token_qs', gAccessToken);
+                    const syncBadge = document.getElementById('syncBadge');
+                    if (syncBadge) {
+                        syncBadge.className = "sync-success";
+                        syncBadge.innerHTML = `<i class="fa-solid fa-cloud-check"></i> Google Drive Linked`;
+                    }
+                }
+            },
+        });
+    }
+
+    function requestGoogleDriveAccess() {
+        if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
+    }
 
     let isLicenseVerified = false;
 
@@ -524,6 +579,8 @@
                 }
             });
     }
+
+    window.onload = () => { setTimeout(initGoogleDriveAuth, 1000); };
 </script>
 
 <!-- 3. MAIN SYSTEM LOGIC SCRIPT -->
